@@ -13,6 +13,9 @@ VDI 上の **ローカルだけ** で完結する Web CTF。
 ---
 
 ## リポジトリ構成
+所要時間の目安: **合計 30〜40分**（CTF慣れした参加者）  
+対象環境: **Kali Linux**（標準 Node で稼働、npm不要）  
+ネットワーク: **外部に出ない**（127.0.0.1:8000 のみ）
 01_Problem_Text/ # 参加者向けの問題文（PP / IDOR）
 02_Ops_Package/ # 運用配布物（server.js / start_all.sh / stop_all.sh / README_for_ops.txt / setup.sh）
 03_Writeups/ # 想定解法（運用・解説用、配布不要）
