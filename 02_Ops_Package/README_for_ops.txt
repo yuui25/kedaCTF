@@ -2,7 +2,7 @@
 
 目的：
 - VDI 上のローカル（127.0.0.1:8000）だけで完結する Web CTF（2問：Prototype Pollution / IDOR）
-- 外部ネットワーク不要・npm不要・Node単体で稼働
+- 外部ネットワーク不要・npm不要・Node（nodejs）単体で稼働
 
 前提：
 - OS: Kali Linux（まっさらでも可）
@@ -12,10 +12,10 @@
 ==================================================
 0) 最速セットアップ（初回のみ・推奨）
 ==================================================
-# 02_Ops_Package/ に入って実行（Zip展開後すぐ）
+# Zip展開後、リポジトリ直下または 02_Ops_Package/ で以下実行
 sudo bash 02_Ops_Package/minidocs_setup.sh
 
-# セットアップ後の起動/停止は下記「2) 以降」を利用
+# セットアップ後の起動/停止は下記「2) 以降」
 
 ==================================================
 1) 手動セットアップ（参考：スクリプトが使えない場合）
@@ -29,7 +29,7 @@ command -v node >/dev/null 2>&1 || command -v nodejs >/dev/null 2>&1 || \
 
 # 配置（02_Ops_Package から）
 sudo mkdir -p /opt/web-pack/minidocs
-sudo cp -a server.js start_all.sh stop_all.sh /opt/web-pack/minidocs/
+sudo cp -a 02_Ops_Package/minidocs/{server.js,start_all.sh,stop_all.sh} /opt/web-pack/minidocs/
 
 # 改行コード（CRLF事故対策）
 sudo sed -i 's/\r$//' /opt/web-pack/minidocs/*.sh
@@ -37,7 +37,12 @@ sudo sed -i 's/\r$//' /opt/web-pack/minidocs/*.sh
 # 権限
 sudo chown -R root:ctfsvc /opt/web-pack
 sudo chmod 640 /opt/web-pack/minidocs/server.js
-sudo chmod 750 /opt/web-pack/minidocs/start_all.sh /opt/web-pack/minidocs/stop_all.sh
+sudo chmod 750 /opt/web-pack/minidocs/{start_all.sh,stop_all.sh}
+
+# /tmp 領域
+sudo mkdir -p /tmp/web-pack
+sudo chown -R ctfsvc:ctfsvc /tmp/web-pack
+sudo chmod 750 /tmp/web-pack
 
 ==================================================
 2) 起動・確認・停止（運用当日）
@@ -83,7 +88,7 @@ curl -s "http://127.0.0.1:8000/docs/doc-vi-$t4" | grep -o 'PCTF{[^}]*}'
 ==================================================
 # A. "command not found"（CRLFの疑い）
 sudo sed -i 's/\r$//' /opt/web-pack/minidocs/*.sh
-sudo chmod 750 /opt/web-pack/minidocs/start_all.sh /opt/web-pack/minidocs/stop_all.sh
+sudo chmod 750 /opt/web-pack/minidocs/{start_all.sh,stop_all.sh}
 
 # B. /tmp にログ/ PID が作れない（権限）
 sudo mkdir -p /tmp/web-pack
@@ -98,7 +103,7 @@ sudo rm -f /tmp/web-pack/minidocs.pid /tmp/web-pack/minidocs.log
 sudo pkill -f -u ctfsvc "/opt/web-pack/minidocs/server.js" 2>/dev/null || true
 sudo /opt/web-pack/minidocs/start_all.sh
 
-# E. 一発復旧（上記まとめ）
+# E. 一発復旧（総合対処）
 sudo pkill -f -u ctfsvc "/opt/web-pack/minidocs/server.js" 2>/dev/null || true
 sudo fuser -k 8000/tcp 2>/dev/null || true
 sudo rm -f /tmp/web-pack/minidocs.pid /tmp/web-pack/minidocs.log
@@ -106,9 +111,10 @@ sudo mkdir -p /tmp/web-pack && sudo chown -R ctfsvc:ctfsvc /tmp/web-pack && sudo
 sudo /opt/web-pack/minidocs/start_all.sh
 
 ==================================================
-6) 仕様メモ
+付録) 運用側 Tips（最小コマンド）
 ==================================================
-- 127.0.0.1:8000 のみでリッスン（外部アクセス不可）
-- フラグは /tmp/web-pack/FLAG_PP.txt / FLAG_IDOR.txt（0600, 所有:ctfsvc）
-- IDORの文書本文は「起動時のフラグ内容」を埋め込み（再起動で更新）
-- start/stop は冪等（複数回叩いても問題なし）
+sudo /opt/web-pack/minidocs/start_all.sh
+sudo /opt/web-pack/minidocs/stop_all.sh
+ss -ltnp | grep 127.0.0.1:8000 || true
+sudo tail -n +1 /tmp/web-pack/minidocs.log
+sudo FLAG_PP='PCTF{pp_2025_xxx}' FLAG_IDOR='PCTF{idor_2025_xxx}' /opt/web-pack/minidocs/start_all.sh
