@@ -19,8 +19,8 @@ VDI 上の **ローカルだけ** で完結する Web CTF。
 
 ---
 
-# すぐ試す（Kali, まっさら想定）
-## セットアップ（依存導入・配置まで自動）
+## すぐ試す（Kali, まっさら想定）
+# セットアップ（依存導入・配置まで自動）
 sudo bash 02_Ops_Package/minidocs_setup.sh
 
 ## 起動
@@ -30,6 +30,6 @@ sudo /opt/web-pack/minidocs/start_all.sh
 ss -ltnp | grep 127.0.0.1:8000 || true
 sudo tail -n +1 /tmp/web-pack/minidocs.log
 
-## ブラウザ（VDI内）
-## http://127.0.0.1:8000/
-## 詳細運用手順・トラブル対処は 02_Ops_Package/README_for_ops.txt を参照。
+# ブラウザ（VDI内）
+# http://127.0.0.1:8000/
+詳細運用手順・トラブル対処は 02_Ops_Package/README_for_ops.txt を参照。
