@@ -12,6 +12,36 @@ chatCPTに相談しながら作ってみました。
 
 ---
 
+## セットアップ
+ダウンロード後、以下を実行:
+
+    cd CTF
+    sudo bash 02_Ops_Package/minidocs_setup.sh
+
+本リポジトリを配置後、以下を実行:
+
+    sudo /opt/web-pack/minidocs/start_all.sh
+
+正常に起動すると:
+
+    [UP] MiniDocs: http://127.0.0.1:8000/
+    Logs: /tmp/web-pack/minidocs.log
+
+でアクセス可能。
+
+---
+
+## 確認方法
+- ポート確認:
+
+      ss -ltnp | grep 127.0.0.1:8000
+
+- ログ確認:
+
+      sudo tail -n 20 /tmp/web-pack/minidocs.log
+
+---
+
 ## 問題
 ### 1. IDOR (Insecure Direct Object Reference)
 - ユーザは `/login` からログイン可能です。
