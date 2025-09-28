@@ -1,120 +1,73 @@
-[MiniDocs 運用メモ（正式版）]
+# MiniDocs 運用手順（運営用）
 
-目的：
-- VDI 上のローカル（127.0.0.1:8000）だけで完結する Web CTF（2問：Prototype Pollution / IDOR）
-- 外部ネットワーク不要・npm不要・Node（nodejs）単体で稼働
+この文書は参加者には配布しません。運営が環境を立ち上げる／停止するための手順です。
 
-前提：
-- OS: Kali Linux（まっさらでも可）
-- 権限: sudo 実行が可能
-- ポート: 127.0.0.1:8000 を使用（ローカルのみ）
+---
 
-==================================================
-0) 最速セットアップ（初回のみ・推奨）
-==================================================
-# Zip展開後、リポジトリ直下または 02_Ops_Package/ で以下実行
-sudo bash 02_Ops_Package/minidocs_setup.sh
+## セットアップ
+本リポジトリを配置後、以下を実行:
 
-# セットアップ後の起動/停止は下記「2) 以降」
+    sudo /opt/web-pack/minidocs/start_all.sh
 
-==================================================
-1) 手動セットアップ（参考：スクリプトが使えない場合）
-==================================================
-# ctfsvc（存在しなければ作成）
-getent passwd ctfsvc >/dev/null || sudo useradd -r -s /usr/sbin/nologin ctfsvc
+正常に起動すると:
 
-# Node.js（無ければ導入）
-command -v node >/dev/null 2>&1 || command -v nodejs >/dev/null 2>&1 || \
-  (sudo apt-get update && sudo apt-get install -y nodejs)
+    [UP] MiniDocs: http://127.0.0.1:8000/
+    Logs: /tmp/web-pack/minidocs.log
 
-# 配置（02_Ops_Package から）
-sudo mkdir -p /opt/web-pack/minidocs
-sudo cp -a 02_Ops_Package/minidocs/{server.js,start_all.sh,stop_all.sh} /opt/web-pack/minidocs/
+でアクセス可能。
 
-# 改行コード（CRLF事故対策）
-sudo sed -i 's/\r$//' /opt/web-pack/minidocs/*.sh
+---
 
-# 権限
-sudo chown -R root:ctfsvc /opt/web-pack
-sudo chmod 640 /opt/web-pack/minidocs/server.js
-sudo chmod 750 /opt/web-pack/minidocs/{start_all.sh,stop_all.sh}
+## 確認方法
+- ポート確認:
 
-# /tmp 領域
-sudo mkdir -p /tmp/web-pack
-sudo chown -R ctfsvc:ctfsvc /tmp/web-pack
-sudo chmod 750 /tmp/web-pack
+      ss -ltnp | grep 127.0.0.1:8000
 
-==================================================
-2) 起動・確認・停止（運用当日）
-==================================================
-# 起動
-sudo /opt/web-pack/minidocs/start_all.sh
+- ログ確認:
 
-# 稼働確認
-ss -ltnp | grep 127.0.0.1:8000 || true
-sudo tail -n +1 /tmp/web-pack/minidocs.log
-# 参加者アクセス： http://127.0.0.1:8000/
+      sudo tail -n 20 /tmp/web-pack/minidocs.log
 
-# 停止
-sudo /opt/web-pack/minidocs/stop_all.sh
+---
 
-==================================================
-3) フラグ差し替え（開催直前に任意）
-==================================================
-# 起動時に環境変数で上書き（推奨）
-sudo FLAG_PP='PCTF{pp_2025_xxx}' FLAG_IDOR='PCTF{idor_2025_xxx}' \
-  /opt/web-pack/minidocs/start_all.sh
+## 停止
+以下で停止可能:
 
-# 直接ファイル更新して再起動でも可
-# echo "PCTF{pp_2025_xxx}"   | sudo tee /tmp/web-pack/FLAG_PP.txt >/dev/null
-# echo "PCTF{idor_2025_xxx}" | sudo tee /tmp/web-pack/FLAG_IDOR.txt >/dev/null
-# sudo chown ctfsvc:ctfsvc /tmp/web-pack/FLAG_{PP,IDOR}.txt && sudo chmod 600 /tmp/web-pack/FLAG_{PP,IDOR}.txt
-# sudo /opt/web-pack/minidocs/start_all.sh
+    sudo /opt/web-pack/minidocs/stop_all.sh
 
-==================================================
-4) 検収（フラグ取得確認・curl例）
-==================================================
-# PP（Prototype Pollution）
-curl -s -X POST -d 'json={"__proto__":{"revealSecret":true}}' \
-  http://127.0.0.1:8000/admin/config >/dev/null
-curl -s http://127.0.0.1:8000/admin/info | grep -o 'PCTF{[^}]*}'
+---
 
-# IDOR（/leak で末尾4桁 → victim=vi）
-t4=$(curl -s http://127.0.0.1:8000/leak | sed -n 's/.*doc-\*\*-\([0-9a-f]\{4\}\).*/\1/p')
-curl -s "http://127.0.0.1:8000/docs/doc-vi-$t4" | grep -o 'PCTF{[^}]*}'
+## フラグの設定
+フラグは **起動時に /tmp/web-pack 配下へ作成**されます。  
+運営が差し替えたい場合は、環境変数を指定して起動してください。
 
-==================================================
-5) トラブル対処（頻出）
-==================================================
-# A. "command not found"（CRLFの疑い）
-sudo sed -i 's/\r$//' /opt/web-pack/minidocs/*.sh
-sudo chmod 750 /opt/web-pack/minidocs/{start_all.sh,stop_all.sh}
+例:
 
-# B. /tmp にログ/ PID が作れない（権限）
-sudo mkdir -p /tmp/web-pack
-sudo chown -R ctfsvc:ctfsvc /tmp/web-pack
-sudo chmod 750 /tmp/web-pack
+    sudo FLAG_PP='PCTF{pp_example}' FLAG_IDOR='PCTF{idor_example}' /opt/web-pack/minidocs/start_all.sh
 
-# C. ポート詰まり（EADDRINUSE）
-sudo fuser -k 8000/tcp 2>/dev/null || true
-sudo rm -f /tmp/web-pack/minidocs.pid /tmp/web-pack/minidocs.log
+これにより:
 
-# D. 多重起動（プロセス残骸）
-sudo pkill -f -u ctfsvc "/opt/web-pack/minidocs/server.js" 2>/dev/null || true
-sudo /opt/web-pack/minidocs/start_all.sh
+- `/tmp/web-pack/FLAG_PP.txt`
+- `/tmp/web-pack/FLAG_IDOR.txt`
 
-# E. 一発復旧（総合対処）
-sudo pkill -f -u ctfsvc "/opt/web-pack/minidocs/server.js" 2>/dev/null || true
-sudo fuser -k 8000/tcp 2>/dev/null || true
-sudo rm -f /tmp/web-pack/minidocs.pid /tmp/web-pack/minidocs.log
-sudo mkdir -p /tmp/web-pack && sudo chown -R ctfsvc:ctfsvc /tmp/web-pack && sudo chmod 750 /tmp/web-pack
-sudo /opt/web-pack/minidocs/start_all.sh
+が更新されます。
 
-==================================================
-付録) 運用側 Tips（最小コマンド）
-==================================================
-sudo /opt/web-pack/minidocs/start_all.sh
-sudo /opt/web-pack/minidocs/stop_all.sh
-ss -ltnp | grep 127.0.0.1:8000 || true
-sudo tail -n +1 /tmp/web-pack/minidocs.log
-sudo FLAG_PP='PCTF{pp_2025_xxx}' FLAG_IDOR='PCTF{idor_2025_xxx}' /opt/web-pack/minidocs/start_all.sh
+---
+
+## 想定解法
+- **IDOR**:
+  1. `/login` でユーザログイン
+  2. `/leak` でドキュメント ID の一部が漏れていることを確認
+  3. 推測して他人の `/docs/doc-vi-xxxx` にアクセス → フラグ
+
+- **Prototype Pollution**:
+  1. 管理者ログイン (`admin/<難しいPW>`)
+  2. `/admin/feature-flags` に JSON を POST
+  3. `{"__proto__":{"featureFlags":{"revealSecret":true}}}`
+  4. `/admin/diagnostics` でフラグが表示される
+
+---
+
+## 運用 Tips
+- 競技開始前に必ず **フラグ文字列が想定通り露出するか確認**
+- 起動時のログに `MiniDocs on http://127.0.0.1:8000` が出ていれば成功
+- エラー時は `/tmp/web-pack/minidocs.log` を確認
