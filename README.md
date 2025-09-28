@@ -27,7 +27,9 @@ chatCPTに相談しながら作ってみました。
     [UP] MiniDocs: http://127.0.0.1:8000/
     Logs: /tmp/web-pack/minidocs.log
 
-でアクセス可能。
+起動後以下にアクセス:
+
+    http://127.0.0.1:8000/
 
 ---
 
