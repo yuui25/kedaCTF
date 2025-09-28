@@ -3,8 +3,12 @@
 この文書は参加者には配布しません。運営が環境を立ち上げる／停止するための手順です。
 
 ---
-
 ## セットアップ
+ダウンロード後、以下を実行:
+
+    cd CTF
+    sudo bash 02_Ops_Package/minidocs_setup.sh
+
 本リポジトリを配置後、以下を実行:
 
     sudo /opt/web-pack/minidocs/start_all.sh
