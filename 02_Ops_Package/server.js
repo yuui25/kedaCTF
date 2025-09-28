@@ -1,36 +1,89 @@
-// MiniDocs - PP (教育用) 完全版
-// place at /opt/web-pack/minidocs/server.js
-// - featureFlags.revealSecret is NOT defined initially (so "new key" injection via __proto__ works)
-// - deepMerge left intentionally vulnerable (teaches Prototype Pollution)
-// - diagnostics reads prototype-level injected keys too (so PP effects are visible)
+
+'use strict';
 
 const http = require('http');
+const url  = require('url');
+const fs   = require('fs');
+const qs   = require('querystring');
 const crypto = require('crypto');
-const fs = require('fs');
-const url = require('url');
-const querystring = require('querystring');
 
+// ===== Flags =====
 const RUNDIR = '/tmp/web-pack';
 function readText(p){ try { return fs.readFileSync(p, 'utf8').trim(); } catch { return ''; } }
-function normalizeFlag(x, fb){
-  const s = (x || '').trim();
-  if (!s) return fb;
-  return s.endsWith('}') ? s : (s + '}');
-}
-const FLAG_PP   = normalizeFlag(readText(`${RUNDIR}/FLAG_PP.txt`),   'PCTF{pp_default}');
-const FLAG_IDOR = normalizeFlag(readText(`${RUNDIR}/FLAG_IDOR.txt`), 'PCTF{idor_default}');
+function normalizeFlag(x, fb){ const s = (x||'').trim(); return s ? (s.endsWith('}') ? s : s + '}') : fb; }
+const FLAG_PP   = normalizeFlag(readText(`${RUNDIR}/FLAG_PP.txt`),   'FLAG{pp_default}');
+const FLAG_IDOR = normalizeFlag(readText(`${RUNDIR}/FLAG_IDOR.txt`), 'FLAG{idor_default}');
 
-// Users
-const ADMIN_PASSWORD = 'adm-' + crypto.randomBytes(3).toString('hex');
-const USERS = {
-  alice: { role: 'user',  password: 'testalice' },
-  admin: { role: 'admin', password: ADMIN_PASSWORD },
+// ===== Runtime config (PPの余地を残す: featureFlags.revealSecret は未定義) =====
+const RUNTIME = {
+  app: { name: 'MiniDocs', mode: 'prod', version: '1.0' },
+  featureFlags: {},                // ← 内部に残す（正攻法/PP両方を許容）
+  limits: { maxDoc: 100 },
+  // revealSecret: (undefined)
 };
 
-// Sessions
-const SESS = Object.create(null);
+// ===== deepMerge (脆弱: __proto__ を無検証でマージ) =====
+function deepMerge(dst, src){
+  if (!src || typeof src !== 'object') return dst;
+  for (const k of Object.keys(src)){
+    const v = src[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)){
+      if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
+      deepMerge(dst[k], v);              // ← __proto__ に潜れる（教育用）
+    } else {
+      dst[k] = v;
+    }
+  }
+  return dst;
+}
+
+// ===== HTML utils (白基調) =====
+const esc = s => String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+function send(res, code, body, ctype='text/html; charset=utf-8', headers={}){ res.writeHead(code, { 'Content-Type': ctype, ...headers }); res.end(body); }
+function layout(title, user, body){
+  const isLogged = !!user;
+  const isAdmin  = isLogged && USERS[user]?.role === 'admin';
+  const nav = isLogged
+    ? [`<a href="/">home</a>`,`<a href="/me">me</a>`,`<a href="/docs">docs</a>`, ...(isAdmin?[`<a href="/admin">admin</a>`]:[]), `<a href="/logout">logout</a>`].join(' · ')
+    : `<a href="/login">login</a>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#0f172a; --muted:#475569; --border:#e2e8f0; --card:#ffffff; --link:#2563eb;
+      --input-bg:#ffffff; --input-fg:#0f172a; --input-bd:#cbd5e1;
+    }
+    *{box-sizing:border-box} body{margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--fg)}
+    header,footer{padding:12px 16px; border-bottom:1px solid var(--border); background:#fafafa}
+    main{max-width:960px; margin:0 auto; padding:20px}
+    a{color:var(--link); text-decoration:none}
+    a:hover{text-decoration:underline}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin:16px 0}
+    code,pre{background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px}
+    input,textarea,button{background:var(--input-bg); color:var(--input-fg); border:1px solid var(--input-bd); border-radius:8px; padding:8px}
+    textarea{width:100%}
+    table{width:100%; border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--border); padding:8px; text-align:left}
+    .muted{color:var(--muted)}
+    form.inline{display:inline}
+  </style></head><body>
+  <header><strong>MiniDocs</strong><nav style="float:right">${nav}</nav></header>
+  <main>${body}</main>
+  <footer>© MiniDocs</footer>
+  </body></html>`;
+}
+const card = html => `<div class="card">${html}</div>`;
+
+// ===== Auth / Sessions =====
 const sidKey = 'session_pxt';
+const SESS = Object.create(null);
 const newSid = () => crypto.randomBytes(16).toString('hex');
+
+const USERS = {
+  alice: { role: 'user',  password: 'testalice' }
+};
+const ADMIN_PASSWORD = 'adm-' + crypto.randomBytes(3).toString('hex');
+USERS.admin = { role: 'admin', password: ADMIN_PASSWORD };
+
 function parseCookies(req){
   const raw = req.headers.cookie || ''; const out = {};
   raw.split(';').forEach(p => { const [k,v] = p.trim().split('='); if (k) out[k] = decodeURIComponent(v||''); });
@@ -43,65 +96,24 @@ function userFromReq(req){
 }
 function setCookie(name, val){ return { 'Set-Cookie': `${name}=${encodeURIComponent(val)}; Path=/; HttpOnly` }; }
 
-// Docs
+// ===== Docs (in-memory) =====
 const DOCS = Object.create(null);
 function addDoc(id, owner, title, body, ymd){ DOCS[id] = { id, owner, title, body, createdAt: ymd }; }
 
-addDoc('doc-bo-0001', 'bob',   'bob note #1',   'test', '2025/09/25');
-addDoc('doc-bo-0002', 'bob',   'bob note #2',   'test', '2025/09/26');
-addDoc('doc-bo-0003', 'bob',   'bob note #3',   'test', '2025/09/27');
-addDoc('doc-al-0001', 'alice', 'alice memo #1', 'test', '2025/09/25');
-addDoc('doc-al-0002', 'alice', 'alice memo #2', 'test', '2025/09/26');
-addDoc('doc-al-0003', 'alice', 'alice memo #3', 'test', '2025/09/27');
+// 初期データ（ヒント含む）
+addDoc('doc-bo-0001', 'bob',   'bob note #2',   '今日はいい天気',   '2025/09/25');
+addDoc('doc-bo-0002', 'bob',   'bob note #1',   '今日はJavaScriptの勉強をした。\ndeepMergeってなんなんだ。。', '2025/09/26');
+addDoc('doc-bo-0003', 'bob',   'bob note #2',   '明日からまた仕事頑張ろう',   '2025/09/27');
+addDoc('doc-al-0001', 'alice', 'alice note #1', 'システムテスト', '2025/09/26');
+// 指定の修正（「管理者にID」→「管理者のID」）
+addDoc('doc-al-0002', 'alice', 'alice note #1', '管理者のIDは管理者だっけ？', '2025/09/26');
+addDoc('doc-al-0003', 'alice', 'alice note #1', '【システム改修メモ】\n権限確認機能が甘そう。。', '2025/09/26');
 
-// Admin secret doc (admin password stored as doc body)
+// 管理者メモ（IDOR導線: パスワード痕跡）
 const ADMIN_DOC_ID = 'doc-ad-0001';
-addDoc(ADMIN_DOC_ID, 'admin', 'Admin memo (password)', ADMIN_PASSWORD, '2025/09/27');
+addDoc(ADMIN_DOC_ID, 'admin', 'Admin Notes', `maintenance notes\nadmin password: ${ADMIN_PASSWORD}\n`, '2025/09/26');
 
-// Runtime config (note: featureFlags.revealSecret is NOT defined initially)
-const RUNTIME = { featureFlags: { /* revealSecret intentionally left undefined */ }, limits: { maxDoc: 100 } };
-
-// Intentionally vulnerable deepMerge (educational) — **DO NOT USE IN PRODUCTION**
-function deepMerge(dst, src){
-  if (!src || typeof src !== 'object') return dst;
-  Object.keys(src).forEach(k => {
-    const v = src[k];
-    if (v && typeof v === 'object' && !Array.isArray(v)){
-      if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
-      deepMerge(dst[k], v);
-    } else {
-      dst[k] = v;
-    }
-  });
-  return dst;
-}
-
-// Utils & HTML layout
-const esc = s => String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-function send(res, code, body, ctype='text/html; charset=utf-8', headers={}){ res.writeHead(code, { 'Content-Type': ctype, ...headers }); res.end(body); }
-function parseBody(req){
-  return new Promise(resolve=>{
-    let data=''; req.on('data', c=> data+=c); req.on('end', ()=>{
-      const ct = req.headers['content-type'] || '';
-      if (ct.includes('application/json')){ try { return resolve({ json: JSON.parse(data) }); } catch { return resolve({}); } }
-      const q = querystring.parse(data); if (q.json){ try { q.json = JSON.parse(q.json); } catch {} }
-      resolve(q);
-    });
-  });
-}
-function layout(title, user, inner){
-  const logged = !!user; const isAdmin = logged && USERS[user]?.role==='admin';
-  const nav = logged
-    ? [`<a href="/me">me</a>`,`<a href="/docs">docs</a>`, ...(isAdmin?[`<a href="/admin">admin</a>`]:[]), `<a href="/logout">logout</a>`].join(' · ')
-    : `<a href="/login">login</a>`;
-  const who = logged ? `<p class="who">Signed in as <b>${esc(user)}</b> (${esc(USERS[user].role)})</p>` : '';
-  return `<!doctype html><meta charset="utf-8"><title>${esc(title)} - MiniDocs</title>
-<style>body{font:14px/1.6 system-ui;margin:0;background:#f7f9fb;color:#111} .container{max-width:860px;margin:0 auto;padding:16px} header{background:#fff;padding:12px;border-bottom:1px solid #e5e7eb} nav a{color:#2563eb;text-decoration:none;margin-right:12px}.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin:16px 0}.who{color:#374151} pre{background:#0b1020;color:#e5e7eb;padding:10px;border-radius:8px;overflow:auto}</style>
-<header><div class="container"><h1><a href="/" style="color:inherit;text-decoration:none">MiniDocs</a></h1><nav>${nav}</nav>${who}</div></header><main class="container">${inner}</main>`;
-}
-const card = html => `<section class="card">${html}</section>`;
-
-// Guards
+// ===== Helpers =====
 function requireLogin(req, res){
   const u = userFromReq(req);
   if (!u){ send(res, 302, '', 'text/plain', { Location: '/login' }); return [null,null]; }
@@ -109,132 +121,206 @@ function requireLogin(req, res){
 }
 function requireAdmin(req, res){
   const [u, info] = requireLogin(req, res); if (!u) return [null,null];
-  if (info.role!=='admin'){ send(res, 403, layout('403', u, card(`<p class="bad">403 Forbidden</p>`))); return [null,null]; }
+  if (info.role !== 'admin'){ send(res, 403, layout('403', u, card(`<p>forbidden</p>`))); return [null,null]; }
   return [u, info];
 }
+function parseBody(req){
+  return new Promise(resolve=>{
+    let data=''; req.on('data', c => data += c).on('end', ()=>{
+      const ct = req.headers['content-type'] || '';
+      if (ct.includes('application/json')){
+        try { resolve({ json: JSON.parse(data) }); } catch { resolve({}); }
+      } else { resolve(qs.parse(data)); }
+    });
+  });
+}
 
-// Handler
+// ドキュメントID自動採番（ユーザー名→接頭辞）
+const PREFIX_MAP = { alice: 'al', admin: 'ad', bob: 'bo' };
+function nextDocIdFor(user){
+  const p = PREFIX_MAP[user] || user.slice(0,2).toLowerCase();
+  const re = new RegExp(`^doc-${p}-(\\d{4})$`);
+  let max = 0;
+  for (const id of Object.keys(DOCS)){
+    const m = id.match(re);
+    if (m){ const n = parseInt(m[1],10); if (n>max) max = n; }
+  }
+  const num = String(max + 1).padStart(4, '0');
+  return `doc-${p}-${num}`;
+}
+function todayYMD(){
+  const d = new Date();
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}/${m}/${day}`;
+}
+
+// ===== Routes =====
 async function handler(req, res){
   const { pathname } = url.parse(req.url, true);
   const user = userFromReq(req);
 
+  // Home（自然なシステム説明）
   if (req.method==='GET' && pathname==='/'){
-    if (!user){
-      return send(res, 200, layout('Home', user, card(`<h2>ようこそ</h2><p>社内ミニドキュメントのプレビュー環境です。まずは <a href="/login">login</a> から。</p>`)));
-    }
-    return send(res, 200, layout('Home', user, card(`<h2>ダッシュボード</h2><p><a href="/me">me</a> / <a href="/docs">docs</a></p>`)));
+    const body = card(`<h2>MiniDocsについて</h2>
+      <p>MiniDocs は、軽量なメモ管理システムです。\nログインして自分のメモを作成し、あとから一覧や詳細を確認できます。管理者は運用設定の調整も行えます。</p>
+      <ul>
+        <li><strong>Me</strong>：自分のメモの一覧と新規作成</li>
+        <li><strong>Docs</strong>：メモの一覧（管理者は全ユーザー分を参照可能）</li>
+      </ul>`);
+    return send(res, 200, layout('Home', user, body));
   }
 
   // Login
   if (req.method==='GET' && pathname==='/login'){
-    return send(res, 200, layout('Login', user, card(`
-      <h2>Login</h2>
-      <form method="POST"><p><label>User ID <input name="user" required></label></p><p><label>Password <input name="password" type="password" required></label></p><p><button>Sign in</button></p></form>
-      <p class="hint">ユーザ: alice / testalice. 管理者パスワードは運用文書にあります。</p>
-    `)));
+    return send(res, 200, layout('Login', user, card(`<h2>Login</h2>
+      <form method="POST" action="/login">
+        <p><label>Username <input name="user" required></label></p>
+        <p><label>Password <input name="pass" type="password" required></label></p>
+        <p><button>Sign in</button></p>
+      </form>
+      <p class="muted">例: <code>alice/testalice</code></p>`)));
   }
   if (req.method==='POST' && pathname==='/login'){
     const body = await parseBody(req);
-    const name = (body.user||'').toString();
-    const pass = (body.password||'').toString();
-    if (!USERS[name] || USERS[name].password !== pass){
-      return send(res, 401, layout('Login', user, card(`<p class="bad">ユーザIDまたはパスワードが違います</p>`)));
+    const u = String(body.user||''); const p = String(body.pass||'');
+    if (!USERS[u] || USERS[u].password !== p){
+      return send(res, 200, layout('Login', user, card(`<p class="muted">invalid</p>`)));
     }
-    const sid = newSid(); SESS[sid] = { user: name };
-    return send(res, 302, '', 'text/plain', { ...setCookie(sidKey,sid), Location: (name==='admin'?'/admin':'/') });
+    const sid = newSid(); SESS[sid] = { user: u, ts: Date.now() };
+    return send(res, 302, '', 'text/plain', { ...setCookie(sidKey, sid), Location: '/' });
   }
+
+  // Logout（GETで簡略）
   if (req.method==='GET' && pathname==='/logout'){
     const sid = parseCookies(req)[sidKey]; if (sid) delete SESS[sid];
     return send(res, 302, '', 'text/plain', { ...setCookie(sidKey,''), Location: '/' });
   }
 
-  // Me
-  if (req.method==='GET' && pathname==='/me'){
+  // Me（自分のメモ一覧 + 新規作成フォーム）
+  if (pathname==='/me'){
     const [u] = requireLogin(req, res); if (!u) return;
-    let mine = Object.values(DOCS).filter(d=> d.owner===u);
-    if (USERS[u].role==='admin' && !mine.find(d=> d.id===ADMIN_DOC_ID)){
-      mine = [DOCS[ADMIN_DOC_ID], ...mine];
+    if (req.method==='GET'){
+      const mine = Object.values(DOCS).filter(d => d.owner === u).sort((a,b)=> a.id.localeCompare(b.id));
+      const rows = mine.length
+        ? mine.map(d=> `<tr><td>${esc(d.id)}</td><td><a href="/docs/${esc(d.id)}">${esc(d.title)}</a></td><td>${esc(d.createdAt||'-')}</td></tr>`).join('')
+        : `<tr><td colspan="3">(empty)</td></tr>`;
+      const form = `
+        <h3>新規メモ</h3>
+        <form method="POST" action="/me">
+          <p><label>Title <input name="title" required></label></p>
+          <p><label>Body<br><textarea name="body" rows="6" required></textarea></label></p>
+          <p><button>Create</button></p>
+        </form>`;
+      return send(res, 200, layout('Me', u, card(`<h2>My Docs</h2>
+        <table><thead><tr><th>ID</th><th>Title</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>`)+card(form)));
     }
-    const rows = mine.length
-      ? mine.map(d=> `<tr><td>${esc(d.id)}</td><td><a href="/docs/${d.id}">${esc(d.title)}</a></td><td>${esc(d.createdAt||'-')}</td></tr>`).join('')
-      : `<tr><td colspan="3">(自分の文書はありません)</td></tr>`;
-    return send(res, 200, layout('My Docs', u, card(`<h2>My Docs</h2><table><thead><tr><th>ID</th><th>Title</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table>`)));
+    if (req.method==='POST'){
+      const body = await parseBody(req);
+      const title = String(body.title||'').trim();
+      const text  = String(body.body||'').trim();
+      if (!title || !text) return send(res, 200, layout('Me', u, card(`<p>title/body is required.</p>`)));
+      const id = nextDocIdFor(u);
+      addDoc(id, u, title, text, todayYMD());
+      return send(res, 302, '', 'text/plain', { Location: '/me' });
+    }
   }
 
   // Docs list
   if (req.method==='GET' && pathname==='/docs'){
     const [u] = requireLogin(req, res); if (!u) return;
-    let list = Object.values(DOCS);
-    if (USERS[u].role!=='admin'){ list = list.filter(d=> d.id!==ADMIN_DOC_ID); }
+    const isAdmin = USERS[u].role === 'admin';
+    // admin は全ユーザー、一般は自分のみ
+    const list = isAdmin ? Object.values(DOCS) : Object.values(DOCS).filter(d => d.owner === u);
     const rows = list.sort((a,b)=> a.id.localeCompare(b.id))
-      .map(d=> `<tr><td>${esc(d.id)}</td><td><a href="/docs/${d.id}">${esc(d.title)}</a></td><td>${esc(d.createdAt||'-')}</td></tr>`).join('');
-    return send(res, 200, layout('Docs', u, card(`<h2>All Docs</h2><table><thead><tr><th>ID</th><th>Title</th><th>Created</th></tr></thead><tbody>${rows}</tbody></table><p class="hint">例: doc-al-0001, doc-bo-0002 など</p>`)));
+      .map(d=> `<tr><td>${esc(d.id)}</td><td><a href="/docs/${esc(d.id)}">${esc(d.title)}</a></td><td>${esc(d.owner)}</td><td>${esc(d.createdAt||'-')}</td></tr>`).join('');
+    const head = `<tr><th>ID</th><th>Title</th><th>Owner</th><th>Created</th></tr>`;
+    return send(res, 200, layout('Docs', u, card(`<h2>${isAdmin ? 'All Docs' : 'Your Docs'}</h2>
+      <table><thead>${head}</thead><tbody>${rows||'<tr><td colspan="4">(empty)</td></tr>'}</tbody></table>`)));
   }
 
-  // Doc view (IDOR: no owner check)
+  // Doc view（★IDOR: 所有者チェックをしない）
   if (req.method==='GET' && pathname.startsWith('/docs/')){
     const [u] = requireLogin(req, res); if (!u) return;
     const id = pathname.split('/').pop();
     const d = DOCS[id];
     if (!d) return send(res, 404, layout('404', u, card(`<p>not found</p>`)));
-    return send(res, 200, layout(d.title, u, card(`<h2>${esc(d.title)}</h2><pre>${esc(d.body)}</pre><p class="hint">id=${esc(d.id)}, owner=${esc(d.owner)}</p>`)));
+    // わざと owner を検証しない
+    return send(res, 200, layout(d.title, u, card(`<h2>${esc(d.title)}</h2><pre>${esc(d.body)}</pre><p class="muted">id=${esc(d.id)}, owner=${esc(d.owner)}</p>`)));
   }
 
-  // Admin dashboard
+  // Admin（Diagnostics をここに統合）
   if (req.method==='GET' && pathname==='/admin'){
     const [u] = requireAdmin(req, res); if (!u) return;
-    return send(res, 200, layout('Admin', u, card(`<h2>Admin Console</h2><ul><li><a href="/admin/diagnostics">Diagnostics</a></li><li><a href="/admin/feature-flags">Feature Flags</a></li></ul><h3>IDOR flag</h3><pre>${esc(FLAG_IDOR)}</pre>`)));
-  }
 
-  // Diagnostics (reads prototype-level injections too)
-  if (req.method==='GET' && pathname==='/admin/diagnostics'){
-    const [u] = requireAdmin(req, res); if (!u) return;
-    // detection order:
-    // 1) own property on RUNTIME.revealSecret
-    // 2) own property on RUNTIME.featureFlags.revealSecret
-    // 3) prototype-level property (Object.prototype.revealSecret) — this is the PP route
+    // --- revealSecret の評価（優先順: RUNTIME直下 → featureFlags → Object.prototype）
     const own = (o,k) => Object.prototype.hasOwnProperty.call(o, k);
-    const revealOwn = own(RUNTIME, 'revealSecret') ? RUNTIME.revealSecret : undefined;
-    const revealFF = (RUNTIME.featureFlags && own(RUNTIME.featureFlags,'revealSecret')) ? RUNTIME.featureFlags.revealSecret : undefined;
-    const revealProto = Object.prototype.revealSecret; // if prototype polluted, will be present
-    const reveal = (revealOwn !== undefined) ? revealOwn : (revealFF !== undefined ? revealFF : (revealProto !== undefined ? revealProto : false));
+    const revealOwn   = own(RUNTIME,'revealSecret') ? RUNTIME.revealSecret : undefined;
+    const revealFF    = (RUNTIME.featureFlags && own(RUNTIME.featureFlags,'revealSecret')) ? RUNTIME.featureFlags.revealSecret : undefined;
+    const revealProto = Object.prototype.revealSecret;
+    const reveal = (revealOwn !== undefined) ? revealOwn
+                   : ((revealFF !== undefined) ? revealFF
+                      : (revealProto !== undefined ? revealProto : false));
 
+    // --- Diagnostics 相当の JSON（表示専用・状態はここで変更しない）
     const diag = {
-      app: { name: 'MiniDocs', mode: 'prod', version: '1.0' },
-      featureFlags: RUNTIME.featureFlags,
+      app: RUNTIME.app,
       limits: RUNTIME.limits,
+      availableFeatureFlags: [
+        { name: "revealSecret", type: "boolean" },
+        { name: "betaUI",       type: "boolean", experimental: true },
+        { name: "exportCSV",    type: "enum",    values: ["disabled","user","admin"] },
+        { name: "auditLog",     type: "enum",    values: ["off","errors","all"] }
+      ],
       serverTime: new Date().toISOString(),
-      secretPreview: reveal ? FLAG_PP : '(hidden)'
+      secretPreview: reveal ? FLAG_PP : "(hidden)"
     };
-    return send(res, 200, layout('Diagnostics', u, card(`<h2>Diagnostics</h2><pre>${esc(JSON.stringify(diag, null, 2))}</pre>`)));
+
+    const sec1 = card(`<h2>IDOR flag</h2><pre>${esc(FLAG_IDOR)}</pre>`);
+
+    const sec2 = card(`<h2>システム管理</h2>
+      <ul>
+        <li><strong>設定変更</strong>：設定内容を変更できます。テキストエリアに JSON を入力して適用します。（現在は無効化中）</li>
+        <li><strong>現在の設定</strong>：現在の設定内容と候補仕様（フラグのスキーマ）を確認できます。</li>
+      </ul>`);
+
+    const sec3 = card(`<h2>設定変更</h2>
+      <form method="POST" action="/admin/feature-flags">
+        <p><label>patch (JSON)<br>
+          <textarea name="json" rows="6" placeholder='{"limits":{"maxDoc":100}}'></textarea>
+        </label></p>
+        <p><button>Apply</button></p>
+      </form>`);
+
+    const sec4 = card(`<h2>現在の設定</h2>
+      <pre>${esc(JSON.stringify(diag, null, 2))}</pre>`);
+
+    return send(res, 200, layout('Admin', u, sec1 + sec2 + sec3 + sec4));
   }
 
-  // Feature flags (vulnerable merge)
+  // Feature Flags（パッチ適用のみ：適用後は /admin へ戻る）
   if (pathname==='/admin/feature-flags'){
     const [u] = requireAdmin(req, res); if (!u) return;
     if (req.method==='GET'){
-      return send(res, 200, layout('Feature Flags', u, card(`<h2>Feature Flags</h2><form method="POST"><p><label>patch (JSON)<textarea name="json" rows="6" placeholder='{"featureFlags":{"revealSecret":true}}'></textarea></label></p><p><button>Apply</button></p></form><p class="hint">デモ: 深いマージを行います（学習用に __proto__ を無検出でマージします）</p><pre>${esc(JSON.stringify(RUNTIME, null, 2))}</pre>`)));
+      return send(res, 302, '', 'text/plain', { Location: '/admin' }); // GETで来たら /admin へ
     }
     if (req.method==='POST'){
       const body = await parseBody(req);
-      const payload = body.json || {};
-      // vulnerable merge — educational
-      deepMerge(RUNTIME, payload);
-      return send(res, 302, '', 'text/plain', { Location: '/admin/feature-flags' });
+      let patch = {};
+      if (body && typeof body.json === 'object'){
+        patch = body.json;
+      } else if (body && typeof body.json === 'string'){
+        try { patch = JSON.parse(body.json); } catch { patch = {}; }
+      }
+      deepMerge(RUNTIME, patch);                 // ← 脆弱: そのまま適用（教育用）
+      return send(res, 302, '', 'text/plain', { Location: '/admin' });
     }
   }
 
-  // Debug (optional hint page) — visible only to admins here (can be toggled)
-  if (req.method==='GET' && pathname==='/debug'){
-    const [u] = requireAdmin(req, res); if (!u) return;
-    return send(res, 200, layout('Debug', u, card(`<h2>Debug</h2><p>RUNTIME object snapshot:</p><pre>${esc(JSON.stringify(RUNTIME, null, 2))}</pre><p>Note: This is an educational environment.</p>`)));
-  }
-
-  // Fallback
+  // 404
   return send(res, 404, layout('404', user, card(`<p>not found</p>`)));
 }
 
-// Server
+// ===== Server =====
 http.createServer(handler).listen(8000, '127.0.0.1', () => {
   console.log('MiniDocs on http://127.0.0.1:8000');
 });
