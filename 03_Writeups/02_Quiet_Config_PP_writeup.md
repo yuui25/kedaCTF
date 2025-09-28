@@ -1,14 +1,21 @@
-# Quiet Config (Prototype Pollution) - Writeup
+# Quiet Config — Prototype Pollution (ブラウザでの解法)
 
-## 解法の流れ
+## 概要（運営向け）
+管理者ユーザでログイン後、管理用の設定フォームに JSON を貼り付けることでアプリの挙動を変えられる実装不備が存在します。  
+ここでは「管理者UIをブラウザで操作してフラグを出す」手順を示します。
 
-1. 管理者としてログインする  
-   - `/login` にて `admin / <取得したPW>` を入力
+## ブラウザ手順（ストレート）
+1. 管理者としてログイン（運営が配布した admin パスワードを使用）。
+2. 管理画面の「Feature Flags」「Settings」「Config」などのページを開く（ページ名は `admin/feature-flags` 等）。
+3. JSON 送信用のテキストエリアに以下を貼り付ける（1行でOK）:
+   `{"__proto__":{"featureFlags":{"revealSecret":true}}}`
+4. 「保存」「適用」「Submit」等のボタンを押す。
+5. 管理メニューの「Diagnostics」または「System info」を開くと、`PCTF{...}` が表示される。
 
-2. 管理者ページから設定 API を発見  
-   - `/admin/feature-flags` に JSON を送信できる
+## 解説（簡単）
+- サーバ側で JSON を受け取り再帰的にマージする際に `__proto__` を排除していないため、`Object.prototype` にキーが生え、以降の通常オブジェクトからもそのキーが見える。
+- `featureFlags.revealSecret` を true にすると診断用ビューが秘密を表示するコードパスに入るためフラグが露出する。
 
-3. **プロトタイプ汚染を試す**  
-   ```bash
-   curl -s -b c -c c -d "user=admin&password=adm-xxxx" http://127.0.0.1:8000/login >/dev/null
-   curl -s -b c -X POST -d 'json={"__proto__":{"featureFlags":{"revealSecret":true}}}' http://127.0.0.1:8000/admin/feature-flags
+## 注意（運営チェック）
+- 設定フォームにプレースホルダや入力制限がないか事前にチェック。
+- 参加者に提示するヒントの有無は運営の判断に任せる。
