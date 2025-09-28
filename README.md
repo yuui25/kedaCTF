@@ -3,8 +3,8 @@
 VDI 上の **ローカルだけ** で完結する Web CTF。  
 1つの Node.js サーバ（外部依存なし）に **2問** を同梱しています。
 
-- ✅ **Prototype Pollution（PP）**: 管理画面のマージ不備を突き、`/admin/info` に FLAG を表示させる  
 - ✅ **IDOR**: 末尾4桁ヒントから他ユーザ文書 ID を特定し、本文内の FLAG を読む
+- ✅ **Prototype Pollution（PP）**: 管理画面のマージ不備を突き、`/admin/info` に FLAG を表示させる  
 
 所要時間の目安: **合計 30〜40分**（CTF慣れした参加者）  
 対象環境: **Kali Linux**（標準 Node で稼働、npm不要）  
