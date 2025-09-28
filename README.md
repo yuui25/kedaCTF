@@ -1,35 +1,35 @@
-# MiniDocs CTF (IDOR + Prototype Pollution)
+# MiniDocs CTF Challenge
 
-VDI 上の **ローカルだけ** で完結する Web CTF。  
-1つの Node.js サーバ（外部依存なし）に **2問** を同梱しています。
-
-- ✅ **IDOR**: 末尾4桁ヒントから他ユーザ文書 ID を特定し、本文内の FLAG を読む
-- ✅ **Prototype Pollution（PP）**: 管理画面のマージ不備を突き、`/admin/info` に FLAG を表示させる  
-
-所要時間の目安: **合計 30〜40分**（CTF慣れした参加者）  
-対象環境: **Kali Linux**（標準 Node で稼働、npm不要）  
-ネットワーク: **外部に出ない**（127.0.0.1:8000 のみ）
+社内用ミニドキュメント管理アプリの「プレビュー環境」を想定した Web 問題です。  
+ログインして利用する中で **脆弱性を突いてフラグを入手**してください。
 
 ---
 
-## リポジトリ構成
-01_Problem_Text/ # 参加者向けの問題文（PP / IDOR）  
-02_Ops_Package/ # 運用配布物（server.js / start_all.sh / stop_all.sh / README_for_ops.txt / setup.sh）  
-03_Writeups/ # 想定解法（運用・解説用、配布不要）
+## 環境
+- 想定環境: Linux (VDI 内)
+- 提供形式: `/opt/web-pack/minidocs/` にサーバコード一式配置済み
+- 起動後: `http://127.0.0.1:8000/` でアクセス可能
 
 ---
 
-## すぐ試す（Kali, まっさら想定）
-# セットアップ（依存導入・配置まで自動）
-sudo bash 02_Ops_Package/minidocs_setup.sh
+## 問題
+### 1. IDOR (Insecure Direct Object Reference)
+- ユーザは `/login` からログイン可能です。
+- 他人のドキュメントにアクセスできてしまう不備を突き、フラグを取得してください。
 
-## 起動
-sudo /opt/web-pack/minidocs/start_all.sh
+### 2. Prototype Pollution
+- 管理者ログイン後、特定の設定 API で **プロトタイプ汚染** を仕掛けられます。
+- 内部の管理情報を操作して、フラグを取得してください。
 
-## 確認（ログ＆ポート）
-ss -ltnp | grep 127.0.0.1:8000 || true
-sudo tail -n +1 /tmp/web-pack/minidocs.log
+---
 
-# ブラウザ（VDI内）
-# http://127.0.0.1:8000/
-詳細運用手順・トラブル対処は 02_Ops_Package/README_for_ops.txt を参照。
+## 注意事項
+- フラグは `PCTF{...}` 形式
+- サーバを壊さず、アプリの想定動作を通じて解いてください
+- 必要なら `curl` などのコマンドラインツールを使っても構いません
+
+---
+
+## ヒント
+- **IDOR**: `/leak` からドキュメント ID のヒントが漏れています
+- **PP**: 管理用 API に JSON を投げて、通常では false の値を上書きできるかもしれません
