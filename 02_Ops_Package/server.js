@@ -14,24 +14,24 @@ function normalizeFlag(x, fb){ const s = (x||'').trim(); return s ? (s.endsWith(
 const FLAG_PP   = normalizeFlag(readText(`${RUNDIR}/FLAG_PP.txt`),   'FLAG{pp_default}');
 const FLAG_IDOR = normalizeFlag(readText(`${RUNDIR}/FLAG_IDOR.txt`), 'FLAG{idor_default}');
 
-// ===== Runtime config (PPの余地を残す: featureFlags.revealSecret は未定義) =====
+// ===== Runtime config (revealSecret は未定義のまま) =====
 const RUNTIME = {
   app: { name: 'MiniDocs', mode: 'prod', version: '1.0' },
-  featureFlags: {},                // ← 内部に残す（正攻法/PP両方を許容）
+  featureFlags: {},                 // ← 機能フラグはここ。revealSecret はUIからは無視される
   limits: { maxDoc: 100 },
-  // revealSecret: (undefined)
+  // revealSecret: (undefined)    // ← ここをあえて作らない（PPで原型に生やされる余地）
 };
 
-// ===== deepMerge (脆弱: __proto__ を無検証でマージ) =====
-function deepMerge(dst, src){
+// ===== vulnerable deep merge (教育用) =====
+function deepMerge(dst, src) {
   if (!src || typeof src !== 'object') return dst;
-  for (const k of Object.keys(src)){
-    const v = src[k];
-    if (v && typeof v === 'object' && !Array.isArray(v)){
-      if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
-      deepMerge(dst[k], v);              // ← __proto__ に潜れる（教育用）
+  for (const key of Object.keys(src)) {
+    const value = src[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      if (!dst[key] || typeof dst[key] !== 'object') dst[key] = {};
+      deepMerge(dst[key], value);   // ← __proto__ もそのまま潜る（Prototype Pollutionが成立）
     } else {
-      dst[k] = v;
+      dst[key] = value;
     }
   }
   return dst;
@@ -78,9 +78,7 @@ const sidKey = 'session_pxt';
 const SESS = Object.create(null);
 const newSid = () => crypto.randomBytes(16).toString('hex');
 
-const USERS = {
-  alice: { role: 'user',  password: 'testalice' }
-};
+const USERS = { alice: { role: 'user',  password: 'testalice' } };
 const ADMIN_PASSWORD = 'adm-' + crypto.randomBytes(3).toString('hex');
 USERS.admin = { role: 'admin', password: ADMIN_PASSWORD };
 
@@ -105,7 +103,6 @@ addDoc('doc-bo-0001', 'bob',   'bob note #2',   '今日はいい天気',   '2025
 addDoc('doc-bo-0002', 'bob',   'bob note #1',   '今日はJavaScriptの勉強をした。\ndeepMergeってなんなんだ。。', '2025/09/26');
 addDoc('doc-bo-0003', 'bob',   'bob note #2',   '明日からまた仕事頑張ろう',   '2025/09/27');
 addDoc('doc-al-0001', 'alice', 'alice note #1', 'システムテスト', '2025/09/26');
-// 指定の修正（「管理者にID」→「管理者のID」）
 addDoc('doc-al-0002', 'alice', 'alice note #1', '管理者のIDは管理者だっけ？', '2025/09/26');
 addDoc('doc-al-0003', 'alice', 'alice note #1', '【システム改修メモ】\n権限確認機能が甘そう。。', '2025/09/26');
 
@@ -154,15 +151,59 @@ function todayYMD(){
   return `${y}/${m}/${day}`;
 }
 
+// ===== /admin 画面（Diagnostics 統合） =====
+function buildAdminPage(user){
+  // ★ 判定は「素朴に読む」＝現実っぽい（ownPropertyで防御しない）
+  const v1 = RUNTIME.revealSecret;                 // ルート直下（基本は未定義）
+  const v2 = RUNTIME.featureFlags?.revealSecret;   // フラグ入れ物（prototype汚染で見える）
+  const reveal = (v1 !== undefined) ? v1
+               : (v2 !== undefined) ? v2
+               : false;
+
+  const diag = {
+    app: RUNTIME.app,
+    limits: RUNTIME.limits,
+    availableFeatureFlags: [
+      { name: "revealSecret", type: "boolean" },                           // ← “存在”だけ示す
+      { name: "betaUI",       type: "boolean", experimental: true },
+      { name: "exportCSV",    type: "enum",    values: ["disabled","user","admin"] },
+      { name: "auditLog",     type: "enum",    values: ["off","errors","all"] }
+    ],
+    serverTime: new Date().toISOString(),
+    secretPreview: reveal ? FLAG_PP : "(hidden)"
+  };
+
+  const sec1 = card(`<h2>IDOR flag</h2><pre>${esc(FLAG_IDOR)}</pre>`);
+
+  const sec2 = card(`<h2>システム管理</h2>
+    <ul>
+      <li><strong>設定変更</strong>：設定内容を変更できます。テキストエリアに JSON を入力して適用します。</li>
+      <li><strong>現在の設定</strong>：現在の設定内容と候補仕様（フラグのスキーマ）を確認できます。</li>
+    </ul>`);
+
+  const sec3 = card(`<h2>設定変更</h2>
+    <form method="POST" action="/admin/feature-flags">
+      <p><label for="patch">patch (JSON)</label><br>
+        <textarea id="patch" name="json" rows="6" placeholder='{"limits":{"maxDoc":100}}'></textarea>
+      </p>
+      <p><button>Apply</button></p>
+    </form>`);
+
+  const sec4 = card(`<h2>現在の設定</h2>
+    <pre>${esc(JSON.stringify(diag, null, 2))}</pre>`);
+
+  return sec1 + sec2 + sec3 + sec4;
+}
+
 // ===== Routes =====
 async function handler(req, res){
   const { pathname } = url.parse(req.url, true);
   const user = userFromReq(req);
 
-  // Home（自然なシステム説明）
+  // Home
   if (req.method==='GET' && pathname==='/'){
     const body = card(`<h2>MiniDocsについて</h2>
-      <p>MiniDocs は、軽量なメモ管理システムです。\nログインして自分のメモを作成し、あとから一覧や詳細を確認できます。管理者は運用設定の調整も行えます。</p>
+      <p>MiniDocs は、軽量なメモ管理システムです。ログインして自分のメモを作成し、あとから一覧や詳細を確認できます。管理者は運用設定の調整も行えます。</p>
       <ul>
         <li><strong>Me</strong>：自分のメモの一覧と新規作成</li>
         <li><strong>Docs</strong>：メモの一覧（管理者は全ユーザー分を参照可能）</li>
@@ -170,7 +211,7 @@ async function handler(req, res){
     return send(res, 200, layout('Home', user, body));
   }
 
-  // Login
+  // Login / Logout
   if (req.method==='GET' && pathname==='/login'){
     return send(res, 200, layout('Login', user, card(`<h2>Login</h2>
       <form method="POST" action="/login">
@@ -189,14 +230,12 @@ async function handler(req, res){
     const sid = newSid(); SESS[sid] = { user: u, ts: Date.now() };
     return send(res, 302, '', 'text/plain', { ...setCookie(sidKey, sid), Location: '/' });
   }
-
-  // Logout（GETで簡略）
   if (req.method==='GET' && pathname==='/logout'){
     const sid = parseCookies(req)[sidKey]; if (sid) delete SESS[sid];
     return send(res, 302, '', 'text/plain', { ...setCookie(sidKey,''), Location: '/' });
   }
 
-  // Me（自分のメモ一覧 + 新規作成フォーム）
+  // Me（自分のメモ一覧 + 新規作成）
   if (pathname==='/me'){
     const [u] = requireLogin(req, res); if (!u) return;
     if (req.method==='GET'){
@@ -225,11 +264,10 @@ async function handler(req, res){
     }
   }
 
-  // Docs list
+  // Docs list（admin=全件、一般=自分）
   if (req.method==='GET' && pathname==='/docs'){
     const [u] = requireLogin(req, res); if (!u) return;
     const isAdmin = USERS[u].role === 'admin';
-    // admin は全ユーザー、一般は自分のみ
     const list = isAdmin ? Object.values(DOCS) : Object.values(DOCS).filter(d => d.owner === u);
     const rows = list.sort((a,b)=> a.id.localeCompare(b.id))
       .map(d=> `<tr><td>${esc(d.id)}</td><td><a href="/docs/${esc(d.id)}">${esc(d.title)}</a></td><td>${esc(d.owner)}</td><td>${esc(d.createdAt||'-')}</td></tr>`).join('');
@@ -244,64 +282,20 @@ async function handler(req, res){
     const id = pathname.split('/').pop();
     const d = DOCS[id];
     if (!d) return send(res, 404, layout('404', u, card(`<p>not found</p>`)));
-    // わざと owner を検証しない
     return send(res, 200, layout(d.title, u, card(`<h2>${esc(d.title)}</h2><pre>${esc(d.body)}</pre><p class="muted">id=${esc(d.id)}, owner=${esc(d.owner)}</p>`)));
   }
 
-  // Admin（Diagnostics をここに統合）
+  // Admin（Diagnostics 統合）
   if (req.method==='GET' && pathname==='/admin'){
     const [u] = requireAdmin(req, res); if (!u) return;
-
-    // --- revealSecret の評価（優先順: RUNTIME直下 → featureFlags → Object.prototype）
-    const own = (o,k) => Object.prototype.hasOwnProperty.call(o, k);
-    const revealOwn   = own(RUNTIME,'revealSecret') ? RUNTIME.revealSecret : undefined;
-    const revealFF    = (RUNTIME.featureFlags && own(RUNTIME.featureFlags,'revealSecret')) ? RUNTIME.featureFlags.revealSecret : undefined;
-    const revealProto = Object.prototype.revealSecret;
-    const reveal = (revealOwn !== undefined) ? revealOwn
-                   : ((revealFF !== undefined) ? revealFF
-                      : (revealProto !== undefined ? revealProto : false));
-
-    // --- Diagnostics 相当の JSON（表示専用・状態はここで変更しない）
-    const diag = {
-      app: RUNTIME.app,
-      limits: RUNTIME.limits,
-      availableFeatureFlags: [
-        { name: "revealSecret", type: "boolean" },
-        { name: "betaUI",       type: "boolean", experimental: true },
-        { name: "exportCSV",    type: "enum",    values: ["disabled","user","admin"] },
-        { name: "auditLog",     type: "enum",    values: ["off","errors","all"] }
-      ],
-      serverTime: new Date().toISOString(),
-      secretPreview: reveal ? FLAG_PP : "(hidden)"
-    };
-
-    const sec1 = card(`<h2>IDOR flag</h2><pre>${esc(FLAG_IDOR)}</pre>`);
-
-    const sec2 = card(`<h2>システム管理</h2>
-      <ul>
-        <li><strong>設定変更</strong>：設定内容を変更できます。テキストエリアに JSON を入力して適用します。（現在は無効化中）</li>
-        <li><strong>現在の設定</strong>：現在の設定内容と候補仕様（フラグのスキーマ）を確認できます。</li>
-      </ul>`);
-
-    const sec3 = card(`<h2>設定変更</h2>
-      <form method="POST" action="/admin/feature-flags">
-        <p><label>patch (JSON)<br>
-          <textarea name="json" rows="6" placeholder='{"limits":{"maxDoc":100}}'></textarea>
-        </label></p>
-        <p><button>Apply</button></p>
-      </form>`);
-
-    const sec4 = card(`<h2>現在の設定</h2>
-      <pre>${esc(JSON.stringify(diag, null, 2))}</pre>`);
-
-    return send(res, 200, layout('Admin', u, sec1 + sec2 + sec3 + sec4));
+    return send(res, 200, layout('Admin', u, buildAdminPage(u)));
   }
 
-  // Feature Flags（パッチ適用のみ：適用後は /admin へ戻る）
+  // Feature Flags（パッチ適用）
   if (pathname==='/admin/feature-flags'){
     const [u] = requireAdmin(req, res); if (!u) return;
     if (req.method==='GET'){
-      return send(res, 302, '', 'text/plain', { Location: '/admin' }); // GETで来たら /admin へ
+      return send(res, 302, '', 'text/plain', { Location: '/admin' });
     }
     if (req.method==='POST'){
       const body = await parseBody(req);
@@ -311,7 +305,28 @@ async function handler(req, res){
       } else if (body && typeof body.json === 'string'){
         try { patch = JSON.parse(body.json); } catch { patch = {}; }
       }
-      deepMerge(RUNTIME, patch);                 // ← 脆弱: そのまま適用（教育用）
+      if (!patch || typeof patch !== 'object') patch = {};
+
+      // 構造的サニタイズ（文字列パターンではない）:
+      // 1) 受け入れるトップレベルキーを限定（__proto__ は教材のため許可）
+      const allowedRoots = new Set(['limits','featureFlags','__proto__']);
+      for (const k of Object.keys(patch)){
+        if (!allowedRoots.has(k)) delete patch[k];
+      }
+      // 2) 正攻法からの revealSecret 直接指定は無視（自然な「システム専用フラグ」扱い）
+      if (patch.featureFlags && typeof patch.featureFlags === 'object'){
+        if (Object.prototype.hasOwnProperty.call(patch.featureFlags, 'revealSecret')){
+          delete patch.featureFlags.revealSecret;
+        }
+      }
+      // 3) ルート直下も同様に無視（万一入ってきても無効化）
+      if (Object.prototype.hasOwnProperty.call(patch, 'revealSecret')){
+        delete patch.revealSecret;
+      }
+
+      // ★ deepMerge は脆弱なまま ⇒ __proto__ を通すと PP が成立
+      deepMerge(RUNTIME, patch);
+
       return send(res, 302, '', 'text/plain', { Location: '/admin' });
     }
   }
