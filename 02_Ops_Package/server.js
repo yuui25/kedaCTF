@@ -99,16 +99,40 @@ const DOCS = Object.create(null);
 function addDoc(id, owner, title, body, ymd){ DOCS[id] = { id, owner, title, body, createdAt: ymd }; }
 
 // 初期データ（ヒント含む）
-addDoc('doc-bo-0001', 'bob',   'bob note #2',   '今日はいい天気',   '2025/09/25');
-addDoc('doc-bo-0002', 'bob',   'bob note #1',   '今日はJavaScriptの勉強をした。\ndeepMergeってなんなんだ。。', '2025/09/26');
-addDoc('doc-bo-0003', 'bob',   'bob note #2',   '明日からまた仕事頑張ろう',   '2025/09/27');
-addDoc('doc-al-0001', 'alice', 'alice note #1', 'システムテスト', '2025/09/26');
-addDoc('doc-al-0002', 'alice', 'alice note #1', '管理者のIDは管理者だっけ？', '2025/09/26');
-addDoc('doc-al-0003', 'alice', 'alice note #1', '【システム改修メモ】\n権限確認機能が甘そう。。', '2025/09/26');
+// ===== 初期データ（役割別ヒントを自然に散らす） =====
 
-// 管理者メモ（IDOR導線: パスワード痕跡）
-const ADMIN_DOC_ID = 'doc-ad-0001';
-addDoc(ADMIN_DOC_ID, 'admin', 'Admin Notes', `maintenance notes\nadmin password: ${ADMIN_PASSWORD}\n`, '2025/09/26');
+// bob: 新人開発者（PPのヒント役）
+addDoc('doc-bo-0001', 'bob', '勉強メモ: オブジェクトの設定管理',
+  'JSの学習: 設定項目を管理するためのオブジェクトがあって、いくつかのフラグで処理を切り替えている。', '2025/08/03');
+addDoc('doc-bo-0002', 'bob', '勉強メモ: 配列のマージ処理',
+  'JSの学習: 配列を結合する方法を調べていたら、「deepmerge」っていうメソッドを使うと深い階層まで結合できるらしい。', '2025/08/12');
+addDoc('doc-bo-0003', 'bob', '勉強メモ: 設定の切り替え',
+  'JSの学習: 設定を動的に切り替える方法を試していたら、オブジェクトのフラグを使う方法が便利そうだ。設定を簡単に管理できる。', '2025/08/15');
+addDoc('doc-bo-0004', 'bob', '勉強メモ: 機能フラグの管理',
+  'JSの学習: 自分のプロジェクトでは、設定の切り替えに「featureFlags」を使って、特定の機能をオンオフできるようにした。', '2025/08/21');
+addDoc('doc-bo-0005', 'bob', '勉強メモ: 設定の管理方法',
+  'JSの学習: 設定フラグを使うと便利だけど、フラグが増えすぎると管理が大変になるかも。特に深い階層の設定を扱う場合。', '2025/08/30');
+
+// alice: システム担当者（IDORのヒント役）
+addDoc('doc-al-0001', 'alice', '運用メモ: 夜間ジョブの監視',
+  '夜間のジョブが予定通りに実行されているかを監視している。ログは一通り確認済み。', '2025/09/26');
+addDoc('doc-al-0002', 'alice', '運用メモ: システム管理者のID命名規則',
+  '管理者のIDはシンプルで覚えやすいものが多い。パターンがあるのでログから推測できる場合がある。', '2025/09/27');
+addDoc('doc-al-0003', 'alice', '運用メモ: メンテナンス中のシステム状態確認',
+  'システムメンテナンスの間、特定の機能が停止していることを確認。メンテナンス終了後、再度チェックが必要。', '2025/09/28');
+addDoc('doc-al-0004', 'alice', '運用メモ: システムセキュリティ強化',
+  'セキュリティに関する設定変更が最近行われたが、一部の設定はまだ完全に適用されていない。', '2025/09/29');
+addDoc('doc-al-0005', 'alice', '運用メモ: パスワード管理方法の見直し',
+  '管理者がパスワードをメモ帳に保存していることが判明。後ほど削除依頼を出す予定。', '2025/09/30');
+
+// admin
+addDoc('doc-ad-0001', 'admin', 'Admin Notes: メモ',
+  'システムのメモ\n- 設定はいろいろあるけど正直よく分かってない。\n- 何かあったらここに書いておく。', '2025/09/26');
+addDoc('doc-ad-0002', 'admin', 'Admin Notes: 設定っぽいもの',
+  '誰かが「設定は画面から入れろ」と言ってた。\n自分は難しいことは分からないので、ここに書いてコピーしておく。', '2025/09/27');
+addDoc('doc-ad-0003', 'admin', 'Admin Notes: パスワード',
+  `大事そうだからここにメモしておく。\nパスワード: ${ADMIN_PASSWORD}\n※忘れると困るので残しておく。`, '2025/09/28');
+
 
 // ===== Helpers =====
 function requireLogin(req, res){
@@ -308,8 +332,7 @@ async function handler(req, res){
       if (!patch || typeof patch !== 'object') patch = {};
 
       // 構造的サニタイズ（文字列パターンではない）:
-      // 1) 受け入れるトップレベルキーを限定（__proto__ は教材のため許可）
-      const allowedRoots = new Set(['limits','featureFlags','__proto__']);
+      const allowedRoots = new Set(['limits','featureFlags']);
       for (const k of Object.keys(patch)){
         if (!allowedRoots.has(k)) delete patch[k];
       }
