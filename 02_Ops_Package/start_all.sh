@@ -11,8 +11,8 @@ sudo chown -R ctfsvc:ctfsvc "$RUNDIR"
 sudo chmod 750 "$RUNDIR"
 
 # フラグ（未指定ならデフォルト。指定があれば上書き）
-: "${FLAG_PP:=PCTF{pp_default}}"
-: "${FLAG_IDOR:=PCTF{idor_default}}"
+: "${FLAG_PP:=PCTF{pp_default0001}}"
+: "${FLAG_IDOR:=PCTF{idor_default0001}}"
 echo "$FLAG_PP"   | sudo -u ctfsvc tee "$RUNDIR/FLAG_PP.txt"   >/dev/null
 echo "$FLAG_IDOR" | sudo -u ctfsvc tee "$RUNDIR/FLAG_IDOR.txt" >/dev/null
 sudo chmod 600 "$RUNDIR"/FLAG_*.txt
