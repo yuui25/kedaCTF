@@ -206,7 +206,7 @@ async function handler(req, res){
       <p>MiniDocs は、軽量なメモ管理システムです。ログインして自分のメモを作成し、あとから一覧や詳細を確認できます。管理者は運用設定の調整も行えます。</p>
       <ul>
         <li><strong>Me</strong>：自分のメモの一覧と新規作成</li>
-        <li><strong>Docs</strong>：メモの一覧（管理者は全ユーザー分を参照可能）</li>
+        <li><strong>Docs</strong>：メモの一覧</li>
       </ul>`);
     return send(res, 200, layout('Home', user, body));
   }
