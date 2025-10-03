@@ -1,15 +1,18 @@
 #!/usr/bin/env sh
 set -eu
 
-# RUNDIR と FLAGファイル（server.js が /tmp/web-pack/FLAG_*.txt を読む）
+umask 077
+
 RUNDIR=/tmp/web-pack
 mkdir -p "$RUNDIR"
+chmod 700 "$RUNDIR"
 
-: "${FLAG_PP:=PCTF{pp_default0001}}"
-: "${FLAG_IDOR:=PCTF{idor_default0001}}"
-echo "$FLAG_PP"   > "$RUNDIR/FLAG_PP.txt"
-echo "$FLAG_IDOR" > "$RUNDIR/FLAG_IDOR.txt"
+# フラグは必須（.env 等から渡す）。未設定なら即終了して分かりやすくエラーにする。
+: "${FLAG_PP:?FLAG_PP is required. Set it via .env (FLAG_PP=...)}"
+: "${FLAG_IDOR:?FLAG_IDOR is required. Set it via .env (FLAG_IDOR=...)}"
+
+printf '%s\n' "$FLAG_PP"   > "$RUNDIR/FLAG_PP.txt"
+printf '%s\n' "$FLAG_IDOR" > "$RUNDIR/FLAG_IDOR.txt"
 chmod 600 "$RUNDIR"/FLAG_*.txt
 
-# アプリ起動
 exec node /app/server.js
