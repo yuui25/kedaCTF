@@ -1,6 +1,8 @@
 services:
   minidocs:
     build: .
+    env_file:
+      - .env
     ports:
       - "8000:8000"           # host:container
     environment:
@@ -9,3 +11,4 @@ services:
       # - FLAG_PP=PCTF{your_pp_flag}
       # - FLAG_IDOR=PCTF{your_idor_flag}
     restart: unless-stopped
+
