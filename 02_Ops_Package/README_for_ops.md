@@ -27,8 +27,8 @@ curl -I http://127.0.0.1:8000/
 - 2回目以降は **オフラインでも** 次で起動/停止できます：
   ```bash
   cd CTF/02_Ops_Package
-  docker compose up -d    # 起動
-  docker compose down     # 停止
+  sudo docker compose up -d    # 起動
+  sudo docker compose down     # 停止
   ```
   > 環境によっては `docker-compose`（ハイフン）コマンドになる場合があります。両方試してください。
 
