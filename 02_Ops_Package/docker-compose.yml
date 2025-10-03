@@ -1,0 +1,11 @@
+services:
+  minidocs:
+    build: .
+    ports:
+      - "8000:8000"           # host:container
+    environment:
+      - PORT=8000
+      # 競技ごとにフラグを差し替える場合は下記でOK
+      # - FLAG_PP=PCTF{your_pp_flag}
+      # - FLAG_IDOR=PCTF{your_idor_flag}
+    restart: unless-stopped
