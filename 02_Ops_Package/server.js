@@ -359,6 +359,10 @@ async function handler(req, res){
 }
 
 // ===== Server =====
-http.createServer(handler).listen(8000, '127.0.0.1', () => {
-  console.log('MiniDocs on http://127.0.0.1:8000');
+const PORT = Number(process.env.PORT) || 8000;
+const HOST = process.env.HOST || '0.0.0.0';
+const srv = http.createServer(handler).listen(PORT, HOST, () => {
+  console.log(`MiniDocs on http://${HOST}:${PORT}`);
 });
+process.on('SIGTERM', ()=> srv.close(()=>process.exit(0)));
+process.on('SIGINT',  ()=> srv.close(()=>process.exit(0)));
