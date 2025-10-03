@@ -1,4 +1,4 @@
-# MiniDocs 運用手順
+# MiniDocs 運用手順（運営用・完全版）
 
 > 本書は **運営向け** です（参加者へは配布しない）。  
 > 方針：構築はオンラインで一度だけ実施し、その後は **オフラインでも運用**できる形にする。
@@ -40,7 +40,7 @@ docker compose build
 `apt` で Node.js を導入し、ホスト直起動します。対象OS：**Debian/Ubuntu/Kali系**。
 
 ```bash
-sudo bash 02_Ops_Package/minidocs_setup.sh
+sudo bash non-docker/minidocs_setup.sh
 # → /opt/web-pack/minidocs に配置・起動
 # 停止: sudo /opt/web-pack/minidocs/stop_all.sh
 ```
