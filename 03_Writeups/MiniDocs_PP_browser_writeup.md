@@ -1,34 +1,31 @@
-# MiniDocs — Prototype Pollution（中級）ブラウザ解法
+# MiniDocs — Prototype Pollution
 
-## 解法（ブラウザ）
+## 解法
 
-### 1) `/admin` の “feature-flags” 画面へ
+### 1) `admin`から管理者画面へ
 - **前提**：管理者でログイン済み（IDOR で入手したパスワードを使用）。
 - **URL欄**：`http://127.0.0.1:8000/admin`
-- **画面名**：「Admin」
-- 上部カード **「設定変更」** に `patch (JSON)` テキストエリアと **Apply** ボタンがある（送信先：`POST /admin/feature-flags`）。
+- 管理画面中部 **「設定変更」** に `patch (JSON)` テキストエリアと **Apply** ボタンがある。
 
 ### 2) フォーム/リクエストの JSON 形式
 - サーバは本文を **JSON / URLエンコード両対応**で受理し、`json` フィールドをパースして `patch` として扱う。
 - 受理される**ルートキー**は `limits` と `featureFlags` のみ（allow-list）。
 - **正攻法の拒否**：`{"featureFlags":{"revealSecret":true}}` のように直接 `revealSecret` を指定しても、サーバ側で削除される（“システム専用フラグ”）。
 
-### 3) 送信ペイロード（PoC）
+### 3) 送信ペイロード
 ```json
 {"featureFlags":{"__proto__":{"revealSecret":true}}}
 ```
-- **狙い**：脆弱な `deepMerge` が **`__proto__` をそのまま潜る**ため、`Object.prototype.revealSecret = true` が汚染される。  
-- 以降、UI は `RUNTIME.featureFlags.revealSecret` を**素朴に参照**するので、prototype 由来でも真と解釈される。
+- **狙い**：脆弱な `deepMerge` が **`__proto__` をそのまま潜る**ため、`Object.prototype.revealSecret = true` が汚染される。 
 
 ### 4) 送信後の画面変化と `<FLAG_PP>` の確認箇所
 1. **Apply** で送信後、`/admin` に 302 リダイレクト。
-2. 管理画面下部カード **「現在の設定」** の Diagnostics JSON に注目：  
+2. 管理画面下部 **「現在の設定」** の内容に注目：  
    - `secretPreview` が **`"(hidden)" → "<FLAG_PP>"`** へ変化している。  
-   - ここに `<FLAG_PP>` が可視化される（*「どこで見えるか」=「現在の設定」カードの JSON 表示部*）。
+   - ここに `<FLAG_PP>` が可視化される。
 
 ### つまずきポイント / 代替ルート
-- **直接指定は無効**：`{"featureFlags":{"revealSecret":true}}` は受理されても**削除**され効果なし。`__proto__` 経由のみ成功。  
-- **送信形式**：テキストエリアの通常フォーム送信（URLエンコード）でも、`Content-Type: application/json` でも成立。
+- **直接指定は無効**：`{"featureFlags":{"revealSecret":true}}` は受理されても**削除**され効果なし。`__proto__` 経由のみ成功。
 
 ---
 
@@ -49,7 +46,7 @@ curl -s -b c.txt http://127.0.0.1:8000/admin | grep -A2 '"secretPreview"'   # =>
 ---
 
 ## 根本原因と対策（Prototype Pollution）
-- **原因**：再帰マージ `deepMerge` が **`__proto__`/`prototype`/`constructor`** を**ブロックせず**に潜るため、`Object.prototype` が汚染される。UI 側も `ownProperty` 判定をせず素朴に参照。  
+- **原因**：再帰マージ `deepMerge` が **`__proto__`/`prototype`/`constructor`** を**ブロックせず**に潜るため、`Object.prototype` が汚染される。UI 側も `ownProperty` 判定をせず参照。  
 - **対策（最小）**：
   - ① マージ前に **危険キー拒否**（`['__proto__','prototype','constructor']` を除去）。  
   - ② ライブラリ利用時は **proto 汚染無効化オプション**を有効化。  
