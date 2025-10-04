@@ -44,8 +44,8 @@ sudo docker compose up -d
 
 - アクセス URL：`http://127.0.0.1:8000/`（VDI内ブラウザ）
 - アカウント
- - 一般：alice / testalice
- - 管理：admin /（起動時に生成。画面またはログで確認）
+    - 一般：alice / testalice
+    - 管理：admin /（起動時に生成。画面またはログで確認）
 - 参加者はブラウザのみ利用。Docker は操作不可。
 > docker-compose.yml は /etc/minidocs/minidocs.env を参照するように編集済みであること
 
