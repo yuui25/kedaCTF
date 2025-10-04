@@ -8,7 +8,7 @@ const qs   = require('querystring');
 const crypto = require('crypto');
 
 // ===== Flags =====
-const RUNDIR = '/tmp/web-pack';
+const RUNDIR = '/tmp/web-pack/flags';
 function readText(p){ try { return fs.readFileSync(p, 'utf8').trim(); } catch { return ''; } }
 function normalizeFlag(x, fb){ const s = (x||'').trim(); return s ? (s.endsWith('}') ? s : s + '}') : fb; }
 const FLAG_PP   = normalizeFlag(readText(`${RUNDIR}/FLAG_PP.txt`),   'FLAG{pp_default}');
