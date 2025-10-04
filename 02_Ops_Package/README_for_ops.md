@@ -1,6 +1,8 @@
 # MiniDocs 運用手順
 
-方針：**管理者が起動**し、**参加者はブラウザだけ**でアクセスする。参加者には Docker 権限を与えない。
+方針：
+- **管理者が起動**し、**参加者はブラウザだけ**でアクセスする。参加者には Docker 権限を与えない。
+- 参加者は docker グループに入れない。`/opt/ctf-src` は 750 などで他ユーザ不可視に。
 
 ---
 
@@ -29,8 +31,6 @@ sudo apt-get update -y
 sudo apt-get install -y docker.io docker-compose || true
 sudo systemctl enable --now docker
 ```
-
-> 参加者は docker グループに入れない。`/opt/ctf-src` は 750 などで他ユーザ不可視に。
 
 ---
 
