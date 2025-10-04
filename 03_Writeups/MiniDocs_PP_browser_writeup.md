@@ -19,8 +19,7 @@
 - **狙い**：脆弱な `deepMerge` が **`__proto__` をそのまま潜る**ため、`Object.prototype.revealSecret = true` が汚染される。 
 
 ### 4) 送信後の画面変化と `<FLAG_PP>` の確認箇所
-1. **Apply** で送信後、`/admin` に 302 リダイレクト。
-2. 管理画面下部 **「現在の設定」** の内容に注目：  
+1. 管理画面下部 **「現在の設定」** の内容に注目：  
    - `secretPreview` が **`"(hidden)" → "<FLAG_PP>"`** へ変化している。  
    - ここに `<FLAG_PP>` が可視化される。
 
