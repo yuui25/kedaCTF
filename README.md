@@ -38,8 +38,8 @@
 ---
 
 ## フラグ
-- **IDOR**：`PCTF{wrong_desk_idor_admin_pw_leak}`
-- **PP**：`PCTF{quiet_config_proto_secret_revealed}`
+- **IDOR**：`PCTF{...}`
+- **PP**：`PCTF{...}`
 > 後で変更可能
 
 ---
