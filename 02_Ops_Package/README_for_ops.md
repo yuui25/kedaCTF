@@ -38,13 +38,13 @@ sudo systemctl enable --now docker
 
 ```bash
 cd /opt/ctf-src/02_Ops_Package
-# docker-compose.yml は /etc/minidocs/minidocs.env を参照するように編集済みであること
 sudo docker compose build
 sudo docker compose up -d
 ```
 
 - アクセス URL：`http://127.0.0.1:8000/`（VDI内ブラウザ）
 - 参加者はブラウザのみ利用。Docker は操作不可。
+> docker-compose.yml は /etc/minidocs/minidocs.env を参照するように編集済みであること
 
 ---
 
