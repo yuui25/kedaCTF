@@ -12,7 +12,7 @@
 ```bash
 sudo install -d -m 750 /opt/ctf-src
 cd /opt/ctf-src
-sudo git clone https://github.com/yuui25/CTF.git .
+sudo git clone https://github.com/yuui25/kedaCTF.git .
 ```
 
 ### B) フラグをリポジトリ外に配置（固定値はここで設定）
