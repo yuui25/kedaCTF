@@ -1,14 +1,14 @@
+version: "3.8"
 services:
   minidocs:
-    build: .
-    env_file:
-      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: minidocs
     ports:
-      - "8000:8000"           # host:container
-    environment:
-      - PORT=8000
-      # 競技ごとにフラグを差し替える場合は下記でOK
-      # - FLAG_PP=PCTF{your_pp_flag}
-      # - FLAG_IDOR=PCTF{your_idor_flag}
+      - "127.0.0.1:8000:8000"         # ループバック限定（VDI内ブラウザのみ）
+    env_file:
+      - /etc/minidocs/minidocs.env    # レポ外の固定フラグ
+    tmpfs:
+      - /tmp/web-pack:rw,noexec,nosuid,nodev
     restart: unless-stopped
-
