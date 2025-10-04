@@ -73,7 +73,7 @@ docker compose up -d --build
 
 ---
 
-## 3. 停止・片付け（管理者）
+## 4. 停止・片付け（管理者）
 ```bash
 cd /opt/ctf-src/02_Ops_Package
 docker compose down
@@ -91,7 +91,7 @@ docker volume prune -f
 
 ---
 
-## 4. 監視・トラブルシュート（管理者）
+## 5. 監視・トラブルシュート（管理者）
 
 ```bash
 sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
@@ -104,7 +104,7 @@ curl -i http://127.0.0.1:8000/
 - フラグはコンテナ内 `/tmp/web-pack/FLAG_*.txt` に生成（tmpfs）。
 ---
 
-## 5. 非Docker（管理者）
+## 6. 非Docker（管理者）
 **Node をホストに導入して起動**
 ```bash
 sudo bash non-docker/minidocs_setup.sh
@@ -119,7 +119,7 @@ sudo /opt/web-pack/minidocs/stop_all.sh
 ---
 
 
-## 6. 参加者案内文（例）
+## 7. 参加者案内文（例）
 
 - VDI を起動し、VDI 内ブラウザで **http://127.0.0.1:8000/** にアクセスしてください。
 - 受験者は PC から Docker を操作する必要はありません。
