@@ -6,14 +6,14 @@
 
 ## 0. 事前準備（初回のみ / 管理者）
 
-# A) リポジトリ配置（例：/opt/ctf-src）
+### A) リポジトリ配置（例：/opt/ctf-src）
 ```bash
 sudo install -d -m 750 /opt/ctf-src
 cd /opt/ctf-src
 sudo git clone https://github.com/yuui25/CTF.git .
 ```
 
-# B) フラグをレポ外に配置（固定値はここで設定）
+### B) フラグをレポ外に配置（固定値はここで設定）
 ```bash
 sudo install -d -m 700 /etc/minidocs
 sudo bash -c 'cat >/etc/minidocs/minidocs.env <<EOF
@@ -23,7 +23,7 @@ EOF'
 sudo chmod 600 /etc/minidocs/minidocs.env
 ```
 
-# C) Docker 導入（無ければ）
+### C) Docker 導入（無ければ）
 ```bash
 sudo apt-get update -y
 sudo apt-get install -y docker.io docker-compose || true
