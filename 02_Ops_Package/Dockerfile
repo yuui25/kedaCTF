@@ -6,7 +6,7 @@ RUN addgroup -S ctfsvc && adduser -S ctfsvc -G ctfsvc -s /sbin/nologin
 
 WORKDIR /app
 COPY server.js /app/
-COPY entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && chown -R ctfsvc:ctfsvc /app
 
 USER ctfsvc
