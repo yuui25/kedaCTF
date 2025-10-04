@@ -117,6 +117,7 @@ sudo /opt/web-pack/minidocs/stop_all.sh
 - アクセス：http://127.0.0.1:8000/
 - ログ：/tmp/web-pack/minidocs.log
 ---
+>基本的にDocker想定なので使用する場合は要調整
 
 
 ## 7. 参加者案内文（例）
