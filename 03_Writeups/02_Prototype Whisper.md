@@ -34,9 +34,6 @@
    - `secretPreview` が **`"(hidden)" → "<FLAG_PP>"`** へ変化している。  
    - ここに `<FLAG_PP>` が可視化される。
 
-### つまずきポイント / 代替ルート
-- **直接指定は無効**：`{"featureFlags":{"revealSecret":true}}` は受理されても**削除**され効果なし。`__proto__` 経由のみ成功。
-
 ---
 
 ## 付録：curl 参考
