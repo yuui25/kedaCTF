@@ -52,12 +52,12 @@ sudo docker compose up -d
 ---
 
 ## 2. 停止・再起動（管理者）
-####停止
+**停止**
 ```bash
 cd /opt/ctf-src/02_Ops_Package
 sudo docker compose down
 ```
-####再起動
+**再起動**
 ```bash
 sudo docker compose down && sudo docker compose up -d
 ```
@@ -81,7 +81,7 @@ docker compose down
 docker system prune -f
 docker volume prune -f
 ```
-####すべてクリーンに（任意）
+**すべてクリーンに（任意）**
 ```bash
 cd /opt/ctf-src/02_Ops_Package
 docker compose down
@@ -105,11 +105,11 @@ curl -i http://127.0.0.1:8000/
 ---
 
 ## 5. 非Docker（管理者）
-####Node をホストに導入して起動
+**Node をホストに導入して起動**
 ```bash
 sudo bash non-docker/minidocs_setup.sh
 ```
-##### 起動/停止
+**起動/停止**
 ```bash
 sudsudo /opt/web-pack/minidocs/start_all.sh
 sudo /opt/web-pack/minidocs/stop_all.sh
