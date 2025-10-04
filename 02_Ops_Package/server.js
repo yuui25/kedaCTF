@@ -215,8 +215,11 @@ function buildAdminPage(user){
 
   const sec4 = card(`<h2>現在の設定</h2>
     <pre>${esc(JSON.stringify(diag, null, 2))}</pre>`);
-
-  return sec1 + sec2 + sec3 + sec4;
+  
+  const sec5 = card(`<p class="muted">※ 一部の内部フラグは通常の指定では変更できません</p>
+    <pre>${esc(JSON.stringify(diag, null, 2))}</pre>`);
+  
+  return sec1 + sec2 + sec3 + sec4+ sec5;
 }
 
 // ===== Routes =====
