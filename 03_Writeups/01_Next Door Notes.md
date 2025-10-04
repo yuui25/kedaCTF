@@ -1,6 +1,11 @@
 # MiniDocs — IDOR
 
-## 解法
+## 解法（簡易版）
+1. 一般ユーザ `alice/testalice` でログインし、**doc-id 規則**（`doc-<prefix>-NNNN`）を把握。  
+2. **管理者 prefix（ad）**の doc-id を直接 URL で試行（例：`/docs/doc-ad-0003`）し、メモ内の**管理者パスワード**を取得。  
+3. `admin/<hidden>` でログインし、**管理画面**で `<FLAG_IDOR>` を確認。
+
+## 解法（詳細）
 
 ### 1) ログイン（alice/testalice）
 - **URL欄**：`http://127.0.0.1:8000/login`
