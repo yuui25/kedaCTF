@@ -1,66 +1,77 @@
-# MiniDocs Challenge
+# MiniDocs CTF
 
-- ChatGPTに相談しながら作ってみました。
-- どのような構成の問題が作れるのか分からなかったので一旦初期設定以外に外部接続なしでweb問題作れないか試してみました。
+ちょっとした社内メモアプリを舞台に、**IDOR（認可不備）**と**Prototype Pollution（設定マージの不備）**を学べる2問構成のWeb CTFです。  
+ブラウザだけで解ける、短時間想定のシナリオ。URL は `http://127.0.0.1:8000/`。
 
 ---
 
 ## 環境
-- 想定環境: Linux (VDI 内)
-- 提供形式: `/opt/web-pack/minidocs/` にサーバコード一式配置済み
-- 起動後: `http://127.0.0.1:8000/` でアクセス可能
+- 実行環境：**VDI 上の Linux**（受験者は VDI 内ブラウザのみ使用／Docker 権限なし）
+- 受験 URL：`http://127.0.0.1:8000/`
+
+## カテゴリ
+- **web**
+
+## 難易度
+- **IDOR**：易
+- **Prototype Pollution（PP）**：中
+
+## テーマ
+- **IDOR**：認可不備をついた**機微情報（管理者メモ）閲覧**
+- **PP**：設定マージの不備を突く**不正操作（機能フラグの汚染）**
 
 ---
 
-## セットアップ
-ダウンロード後、以下を実行:
+## タイトル
+- **01 — Next Door Notes**
+- **02 — Prototype Whisper**
 
-    cd CTF
-    sudo bash 02_Ops_Package/minidocs_setup.sh
+## 問題文
+### 01 — Next Door Notes
+> 最近社内メモ管理ツールが導入された簡単なメモを残すには便利かもしれない。
+> ただ、オフィスでは「となりの机の書類が混ざることがある」なんて噂も。
 
-本リポジトリを配置後、以下を実行:
-
-    sudo /opt/web-pack/minidocs/start_all.sh
-
-正常に起動すると:
-
-    [UP] MiniDocs: http://127.0.0.1:8000/
-    Logs: /tmp/web-pack/minidocs.log
-
-起動後以下にアクセス:
-
-    http://127.0.0.1:8000/
+### 02 — Prototype Whisper
+> 管理画面で“設定”をいじると見た目が変わる普通のツール。  
+> 秘密の設定が、いつの間にか受け継がれることがあるらしい。
 
 ---
 
-## 確認方法
-- ポート確認:
-
-      ss -ltnp | grep 127.0.0.1:8000
-
-- ログ確認:
-
-      sudo tail -n 20 /tmp/web-pack/minidocs.log
+## フラグ
+- **IDOR**：`PCTF{wrong_desk_idor_admin_pw_leak}`
+- **PP**：`PCTF{quiet_config_proto_secret_revealed}`
 
 ---
 
-## 問題
-### 1. IDOR (Insecure Direct Object Reference)
-- ユーザは `/login` からログイン可能です。
-- ユーザアカウントは配布予定
-- 他人のドキュメントにアクセスできてしまう不備を突き、フラグを取得想定。
+## 解法（簡易版）
+### IDOR
+1. 一般ユーザ `alice/testalice` でログインし、**doc-id 規則**（`doc-<prefix>-NNNN`）を把握。  
+2. **管理者 prefix（ad）**の doc-id を直接 URL で試行（例：`/docs/doc-ad-0003`）し、メモ内の**管理者パスワード**を取得。  
+3. `admin/<hidden>` でログインし、**管理画面**で `<FLAG_IDOR>` を確認。
 
-### 2. Prototype Pollution
-- 管理者ログイン後、特定の設定 API で **プロトタイプ汚染** を仕掛けられます。
-- 内部の管理情報を操作して、フラグを取得を想定。
-
----
-
-## 注意事項
-- フラグの形式は一旦 `PCTF{...}` で作ってます。
-- ファジングツールなど使用禁止、ブラウザから行えるアプリの想定動作のみ。
+### Prototype Pollution
+1. 管理者でログイン後右上のadminを押下 
+2. `{"featureFlags":{"__proto__":{"revealSecret":true}}}` を送信し、**prototype 汚染**で `revealSecret` を有効化。  
+3. 画面下部の`secretPreview` が `<FLAG_PP>` に変化したことを確認。
 
 ---
 
-## 使用ツール
-- ブラウザのみ。(人によってはCurlでやるかも)
+## 必要ツール
+- **ブラウザのみ**（VDI 内で提供）
+
+---
+
+## 参考情報 / ルール
+- **環境構築は管理側で実施**：root 権限で Docker を使用してセットアップします。  
+- **インターネット接続は構築時のみ必要**：挑戦時は**オフライン（VDI 内）**で動作します。  
+- **使用禁止**：ファジングツールの利用、DoS、辞書攻撃・総当たり、OS/コンテナへの侵入。  
+- **OK**：**ブラウザから行えるアプリの通常操作**、および URL 直打ち・フォーム送信等の範囲。  
+- **URL**：`http://127.0.0.1:8000/`（挑戦時に Docker 権限はありません）
+
+---
+
+## 運用者向けドキュメント
+- **環境構築・運用手順**は同梱の **`README_for_ops.md`** を参照してください。  
+  - 例：フラグ設定（`/etc/minidocs/minidocs.env`）、`entrypoint.sh`、`docker-compose.yml` の配置と起動、`/tmp/web-pack/flags/FLAG_*.txt` の確認 など。
+
+---
