@@ -64,6 +64,14 @@ sudo docker compose down && sudo docker compose up -d
 
 ---
 
+## 3. フラグ差し替え（管理者）
+```bash
+sed -i 's/PCTF{pp_.*/PCTF{pp_new}/' /etc/minidocs/minidocs.env
+sed -i 's/PCTF{idor_.*/PCTF{idor_new}/' /etc/minidocs/minidocs.env
+docker compose up -d --build
+```
+
+---
 ## 3. 監視・トラブルシュート（管理者）
 
 ```bash
