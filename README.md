@@ -1,4 +1,4 @@
-# MiniDocs CTF
+# MiniDocs
 
 ちょっとした社内メモアプリを舞台に、**IDOR（認可不備）**と**Prototype Pollution（設定マージの不備）**を学べる2問構成のWeb CTFです。  
 ブラウザだけで解ける、短時間想定のシナリオ。URL は `http://127.0.0.1:8000/`。
