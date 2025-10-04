@@ -13,7 +13,7 @@ cd /opt/ctf-src
 sudo git clone https://github.com/yuui25/CTF.git .
 ```
 
-### B) フラグをレポ外に配置（固定値はここで設定）
+### B) フラグをリポジトリ外に配置（固定値はここで設定）
 ```bash
 sudo install -d -m 700 /etc/minidocs
 sudo bash -c 'cat >/etc/minidocs/minidocs.env <<EOF
