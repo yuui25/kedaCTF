@@ -1,4 +1,4 @@
-# MiniDocs — IDOR（初心者向け）ブラウザ解法
+# MiniDocs — IDOR
 
 ## 解法（ブラウザ）
 
