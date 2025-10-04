@@ -1,6 +1,12 @@
-# MiniDocs — Prototype Pollution
+# MiniDocs — Prototype Whisper
 
-## 解法
+## 解法（簡易版）
+
+1. 管理者でログイン後右上のadminを押下 
+2. `{"featureFlags":{"__proto__":{"revealSecret":true}}}` を送信し、**prototype 汚染**で `revealSecret` を有効化。  
+3. 画面下部の`secretPreview` が `<FLAG_PP>` に変化したことを確認。
+
+## 解法(詳細)
 
 ### 1) `admin`から管理者画面へ
 - **前提**：管理者でログイン済み（IDOR で入手したパスワードを使用）。
