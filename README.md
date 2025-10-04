@@ -37,25 +37,6 @@
 
 ---
 
-## フラグ
-- **IDOR**：`PCTF{...}`
-- **PP**：`PCTF{...}`
-
----
-
-## 解法（簡易版）
-### IDOR
-1. 一般ユーザ `alice/testalice` でログインし、**doc-id 規則**（`doc-<prefix>-NNNN`）を把握。  
-2. **管理者 prefix（ad）**の doc-id を直接 URL で試行（例：`/docs/doc-ad-0003`）し、メモ内の**管理者パスワード**を取得。  
-3. `admin/<hidden>` でログインし、**管理画面**で `<FLAG_IDOR>` を確認。
-
-### Prototype Pollution
-1. 管理者でログイン後右上のadminを押下 
-2. `{"featureFlags":{"__proto__":{"revealSecret":true}}}` を送信し、**prototype 汚染**で `revealSecret` を有効化。  
-3. 画面下部の`secretPreview` が `<FLAG_PP>` に変化したことを確認。
-
----
-
 ## 必要ツール
 - **ブラウザのみ**（VDI 内で提供）
 
