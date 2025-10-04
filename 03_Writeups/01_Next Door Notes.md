@@ -1,4 +1,4 @@
-# Next Door Notes
+# MiniDocs — Next Door Notes
 
 ## 解法（簡易版）
 1. 一般ユーザ `alice/testalice` でログインし、**doc-id 規則**（`doc-<prefix>-NNNN`）を把握。  
