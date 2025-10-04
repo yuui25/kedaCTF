@@ -49,11 +49,13 @@ sudo docker compose up -d
 ---
 
 ## 2. 停止・再起動（管理者）
-
+####停止
 ```bash
 cd /opt/ctf-src/02_Ops_Package
 sudo docker compose down
-# or 再起動
+```
+####再起動
+```bash
 sudo docker compose down && sudo docker compose up -d
 ```
 
