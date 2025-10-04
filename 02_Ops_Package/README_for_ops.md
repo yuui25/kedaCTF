@@ -19,8 +19,8 @@ sudo git clone https://github.com/yuui25/CTF.git .
 ```bash
 sudo install -d -m 700 /etc/minidocs
 sudo bash -c 'cat >/etc/minidocs/minidocs.env <<EOF
-FLAG_PP=PCTF{pp_fixed_value}
-FLAG_IDOR=PCTF{idor_fixed_value}
+FLAG_PP=PCTF{quiet_config_proto_secret_revealed}
+FLAG_IDOR=PCTF{wrong_desk_idor_admin_pw_leak}
 EOF'
 sudo chmod 600 /etc/minidocs/minidocs.env
 ```
